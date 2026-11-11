@@ -57,6 +57,11 @@ const config = require('./cli.js')
 	.parse(process.argv);
 
 global.address = config.address;
+// LISTEN_PORT env (e.g. "18080:18081") lets the exe bind a non-default port
+// without command line args; -p still wins when both are given.
+// LISTEN_ADDR env does the same for the bind address.
+if (!config.port && process.env.LISTEN_PORT) config.port = process.env.LISTEN_PORT;
+if (!config.address && process.env.LISTEN_ADDR) global.address = process.env.LISTEN_ADDR;
 config.port = (config.port || '8080:8081')
 	.split(':')
 	.map((string) => parseInt(string));
