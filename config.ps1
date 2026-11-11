@@ -1,4 +1,4 @@
-﻿<#
+<#
     UNM 3.x 适配版 · 快捷配置器
     双击 config.bat 运行，或: powershell -ExecutionPolicy Bypass -File config.ps1
 #>
@@ -281,10 +281,15 @@ while ($true) {
             $exe = Join-Path $root 'unm-3x.exe'
             if (-not (Test-Path $exe)) { $exe = Join-Path $root 'dist\unm-3x.exe' }
             if (Test-Path $exe) {
-                Start-Process -FilePath $exe -WorkingDirectory (Split-Path $exe) -WindowStyle Hidden
+                # 和开机自启保持一致：绑 127.0.0.1，双端口
+                Start-Process -FilePath $exe `
+                    -ArgumentList '-p', '8080:8081', '-a', '127.0.0.1' `
+                    -WorkingDirectory (Split-Path $exe) -WindowStyle Hidden
                 Start-Sleep -Seconds 3
                 $ok = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
-                if ($ok) { Write-Host '   服务已启动 (8080/8081)' -ForegroundColor Green }
+                $ok2 = Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue
+                if ($ok -and $ok2) { Write-Host '   服务已启动 (8080/8081)' -ForegroundColor Green }
+                elseif ($ok) { Write-Host '   警告：8080 已起但 8081 未监听，客户端会请求失败' -ForegroundColor Yellow }
                 else { Write-Host '   启动失败，请手动运行 unm-3x.exe 查看报错' -ForegroundColor Red }
             } else {
                 Write-Host '   找不到 unm-3x.exe，请手动启动' -ForegroundColor Red

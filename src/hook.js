@@ -101,7 +101,6 @@ hook.target.path = new Set([
 	'/api/v1/discovery/recommend/songs',
 	'/api/v3/discovery/recommend/songs',
 	'/api/discovery/recommend/songs',
-	'/api/song/chorus',
 	'/api/usertool/sound/mobile/promote',
 	'/api/usertool/sound/mobile/theme',
 	'/api/usertool/sound/mobile/animationList',
@@ -183,8 +182,13 @@ hook.request.before = (ctx) => {
 				if (
 					req.url.includes('stream') ||
 					req.url.includes('/eapi/cloud/upload/check')
-				)
-					return; // look living/cloudupload eapi can not be decrypted
+				) {
+					// These can't be decrypted, but they are still NetEase API
+					// calls: keep the overseas-unblock header on them.
+					req.headers['X-Real-IP'] = '118.88.88.88';
+					req.headers['Accept-Encoding'] = 'gzip, deflate';
+					return;
+				}
 				if (body) {
 					const netease = {};
 					netease.pad = (body.match(/%0+$/) || [''])[0];
@@ -257,15 +261,19 @@ hook.request.before = (ctx) => {
 					}
 					netease.path = netease.path.replace(/\/\d*$/, '');
 					ctx.netease = netease;
-					try {
-						logger.debug(
-							{
-								path: netease.path,
-								param: JSON.stringify(netease.param).slice(0, 600),
-							},
-							'EAPI'
-						);
-					} catch (e) {}
+					// Serialising the param on every eapi call is wasteful when
+					// the level is above debug, so gate it.
+					if (logger.isLevelEnabled && logger.isLevelEnabled('debug')) {
+						try {
+							logger.debug(
+								{
+									path: netease.path,
+									param: JSON.stringify(netease.param).slice(0, 600),
+								},
+								'EAPI'
+							);
+						} catch (e) {}
+					}
 					// 3.x routes EVERY eapi call (comments, lyrics, user info, ...)
 					// through interfacepc.music.163.com. Only the interfaces we
 					// actually rewrite may carry the forged X-Real-IP and the
@@ -733,6 +741,9 @@ const tryMatch = (ctx) => {
 	let target = 0;
 
 	const inject = (item) => {
+		// jsonBody.data can legitimately be null for some endpoints; the
+		// original code would throw on `item.flag = 0` in that case.
+		if (!item || typeof item !== 'object') return;
 		item.flag = 0;
 		if (
 			(item.code !== 200 ||
@@ -799,7 +810,16 @@ const tryMatch = (ctx) => {
 							type: 0,
 							remainTime: 0,
 						};
-					item.level = item.br >= 999000 ? 'lossless' : 'standard';
+					// Map level to what the served bitrate actually is, so the
+					// client's quality badge matches the stream.
+					item.level =
+						item.br >= 999000
+							? 'lossless'
+							: item.br >= 320000
+							? 'exhigh'
+							: item.br >= 192000
+							? 'higher'
+							: 'standard';
 					item.encodeType = item.type;
 					return song;
 				})

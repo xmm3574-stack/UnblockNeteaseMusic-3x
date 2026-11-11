@@ -81,7 +81,7 @@ if (config.forceHost && require('net').isIP(config.forceHost) === 0) {
 }
 // MATCH_ORDER env: comma/space separated source list, e.g. "kugou,kuwo,migu".
 // Command line -o takes precedence when both are given.
-if (!config.matchOrder && process.env.MATCH_ORDER) {
+if ((!config.matchOrder || !config.matchOrder.length) && process.env.MATCH_ORDER) {
 	const fromEnv = process.env.MATCH_ORDER.split(/[,\s]+/).filter(Boolean);
 	if (fromEnv.length) config.matchOrder = fromEnv;
 }
