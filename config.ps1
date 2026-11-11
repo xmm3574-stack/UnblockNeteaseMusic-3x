@@ -113,6 +113,7 @@ while ($true) {
     $level = Get-Val 'LOG_LEVEL' 'info'
     $ncm   = Get-Val 'NETEASE_COOKIE'
     $qq    = Get-Val 'QQ_COOKIE'
+    $srcOrder = Get-Val 'MATCH_ORDER'
     $auto  = Get-AutostartState
 
     Write-Host ''
@@ -130,6 +131,7 @@ while ($true) {
     Write-Host ('   [8] 日志等级          : ' + $level)
     Write-Host ('   [9] 网易 Cookie       : ' + $(if ($ncm) { '(已设置)' } else { '(未设置)' }))
     Write-Host ('   [Q] QQ Cookie         : ' + $(if ($qq) { '(已设置)' } else { '(未设置)' }))
+    Write-Host ('   [O] 音源顺序          : ' + $(if ($srcOrder) { $srcOrder } else { '(内置默认)' }))
     if ($auto -eq 'on') {
         Write-Host ('   [A] 开机自启          : ') -NoNewline
         Write-Host '已开启' -ForegroundColor Green
@@ -197,6 +199,31 @@ while ($true) {
             $n = Read-Host '   Cookie'
             if ($n.Trim() -eq '') { Del-Val 'QQ_COOKIE' } else { Set-Val 'QQ_COOKIE' $n.Trim() }
             $dirty = $true
+        }
+        'O' {
+            Write-Host ''
+            Write-Host '   音源顺序（内置默认: kugou,kuwo,migu,bilibili,ytdlp）'
+            Write-Host '     1 = 只要国内三源       kugou,kuwo,migu（不要 B站）'
+            Write-Host '     2 = 国内三源 + B站兜底  kugou,kuwo,migu,bilibili'
+            Write-Host '     3 = 只留酷狗酷我       kugou,kuwo（最快）'
+            Write-Host '     4 = 自定义（逗号分隔）'
+            Write-Host '     5 = 恢复内置默认'
+            $n = Read-Host '   选择'
+            switch ($n.Trim()) {
+                '1' { Set-Val 'MATCH_ORDER' 'kugou,kuwo,migu'; $dirty = $true }
+                '2' { Set-Val 'MATCH_ORDER' 'kugou,kuwo,migu,bilibili'; $dirty = $true }
+                '3' { Set-Val 'MATCH_ORDER' 'kugou,kuwo'; $dirty = $true }
+                '4' {
+                    Write-Host '   可用: kugou kuwo migu bilibili bilivideo bodian ytdlp qq joox youtube'
+                    $v = Read-Host '   输入顺序'
+                    if ($v.Trim()) {
+                        Set-Val 'MATCH_ORDER' (($v.Trim() -split '[\s,]+' | Where-Object { $_ }) -join ',')
+                        $dirty = $true
+                    }
+                }
+                '5' { Del-Val 'MATCH_ORDER'; $dirty = $true }
+                default { }
+            }
         }
         'A' {
             Write-Host ''

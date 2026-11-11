@@ -79,6 +79,13 @@ if (config.forceHost && require('net').isIP(config.forceHost) === 0) {
 	console.log('Please check the server host.');
 	process.exit(1);
 }
+// MATCH_ORDER env: comma/space separated source list, e.g. "kugou,kuwo,migu".
+// Command line -o takes precedence when both are given.
+if (!config.matchOrder && process.env.MATCH_ORDER) {
+	const fromEnv = process.env.MATCH_ORDER.split(/[,\s]+/).filter(Boolean);
+	if (fromEnv.length) config.matchOrder = fromEnv;
+}
+
 if (config.matchOrder) {
 	const provider = Object.keys(require('./consts').PROVIDERS);
 	const candidate = config.matchOrder;
@@ -86,7 +93,10 @@ if (config.matchOrder) {
 		console.log('Please check the duplication in match order.');
 		process.exit(1);
 	} else if (candidate.some((key) => !provider.includes(key))) {
-		console.log('Please check the availability of match sources.');
+		console.log(
+			'Please check the availability of match sources. Valid: ' +
+				provider.join(',')
+		);
 		process.exit(1);
 	}
 	global.source = candidate;
